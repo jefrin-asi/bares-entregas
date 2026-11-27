@@ -1,4 +1,4 @@
-﻿<#
+<#
  .SYNOPSIS  Instala o ACTUALIZA el Sistema Bares en Windows bajando el paquete de Internet (sin USB).
  Uso (PowerShell como ADMINISTRADOR, en la PC servidor):
      irm https://raw.githubusercontent.com/jefrin-asi/bares-entregas/main/instalar-bares.ps1 | iex
@@ -9,6 +9,7 @@
  Los datos (ventas, clientes, inventario) nunca se borran: viven aparte, en C:\ProgramData\SistemaBares.
 #>
 $ErrorActionPreference = 'Stop'
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force   # Windows 11 trae «Restricted»: sin esto, instalar.ps1/actualizar.ps1 del paquete no corren
 $Repo = 'jefrin-asi/bares-entregas'
 $Base = if ($env:BARES_ENTREGAS_BASE) { $env:BARES_ENTREGAS_BASE } else { "https://github.com/$Repo/releases/latest/download" }   # la variable solo sirve para probar
 $Iter = 200000   # mismas vueltas que tools/entregas/cifrar.sh
@@ -55,8 +56,10 @@ Remove-Item $enc, $zip -Force
 if (Get-Service 'SistemaBares' -ErrorAction SilentlyContinue) {
     Paso 'El sistema ya está instalado: ACTUALIZANDO (con respaldo y regreso automático si falla)'
     & (Join-Path $dir 'actualizar.ps1')
+    if ($LASTEXITCODE -ne 0) { Write-Host "`nLa versión nueva NO quedó instalada: el sistema volvió a la versión anterior (revise los mensajes de arriba)." -ForegroundColor Red; return }
 } else {
     Paso 'Primera vez en esta PC: INSTALANDO'
     & (Join-Path $dir 'instalar.ps1') -CodigoEmpresa 'SHORTYS' -NombreEmpresa "Shorty's Discotec" -NombreSucursal "Shorty's Discotec"
+    if (-not (Get-Service 'SistemaBares' -ErrorAction SilentlyContinue)) { Write-Host "`nLa instalación no terminó (revise los mensajes de arriba)." -ForegroundColor Red; return }
 }
 Write-Host "`nListo. Las cajas solo deben recargar la página (F5). Paquete usado: $dir" -ForegroundColor Green
